@@ -1,0 +1,56 @@
+name: Build Windows EXE & Setup
+on: [workflow_dispatch, push]
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          pip install pyinstaller playwright python-dotenv
+
+      - name: PyInstaller
+        run: |
+          pyinstaller --noconfirm --onefile --windowed ^
+            --name "JetstokBot_Launcher" ^
+            --collect-all playwright ^
+            --hidden-import jetstok_trendyol_bot ^
+            --hidden-import rules_defaults ^
+            --add-data "rules_defaults.py;." ^
+            launcher.py
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: JetstokBot_EXE
+          path: dist/JetstokBot_Launcher.exe
+
+  build-setup:
+    needs: build-exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: JetstokBot_EXE
+          path: dist
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Setup
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" JetstokBot.iss'
+
+      - name: Upload Setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: JetstokBot_Setup
+          path: dist/JetstokBot_Setup.exe
